@@ -479,34 +479,44 @@ fn generate_type_size(
 			}
         }
         Types::Optional(t) => {
-            file.write(
-                format!(
-                    "optional_size((({}*)s)->{}, ",
-                    name, field_name
-                )
-                .as_bytes(),
-            )?;
-            match t.as_ref() {
-                Types::Int | Types::Float | Types::Point => {
-                    file.write(b"int_size")?;
+            if let Types::String = t.as_ref() {
+                file.write(
+                    format!(
+                        "optional_size((({}*)s)->{}[0], string_size)",
+                        name, field_name
+                    )
+                    .as_bytes(),
+                )?;
+            } else {
+                file.write(
+                    format!(
+                        "optional_size((({}*)s)->{}, ",
+                        name, field_name
+                    )
+                    .as_bytes(),
+                )?;
+                match t.as_ref() {
+                    Types::Int | Types::Float | Types::Point => {
+                        file.write(b"int_size")?;
+                    }
+                    Types::Bool | Types::Char => {
+                        file.write(b"char_size")?;
+                    }
+                    Types::String => {
+                        unreachable!("Optional of strings are special cases");
+                    }
+                    Types::Struct(name) => {
+                        file.write(format!("{}_size", name).as_bytes())?;
+                    }
+                    Types::Array(_) => {
+                        unimplemented!("Optional of arrays not supported");
+                    }
+                    Types::Optional(_) => {
+                        unreachable!("Optional of optionals not supported");
+                    }
                 }
-                Types::Bool | Types::Char => {
-                    file.write(b"char_size")?;
-                }
-                Types::String => {
-                    file.write(b"string_size")?;
-                }
-                Types::Struct(name) => {
-                    file.write(format!("{}_size", name).as_bytes())?;
-                }
-                Types::Array(_) => {
-                    unimplemented!("Optional of arrays not supported");
-                }
-                Types::Optional(_) => {
-                    unreachable!("Optional of optionals not supported");
-                }
+                file.write(b")")?;
             }
-            file.write(b")")?;
         }
     }
     Ok(())
